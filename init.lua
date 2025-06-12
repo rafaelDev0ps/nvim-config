@@ -45,6 +45,48 @@ vim.keymap.set('n', '<C-w>Down', '<C-w>j', { desc = 'Go to lower window' })
 vim.keymap.set('n', '<C-w>Up', '<C-w>k', { desc = 'Go to upper window' })
 vim.keymap.set('n', '<C-w>Right', '<C-w>l', { desc = 'Go to right window' })
 
+-- File management keymaps
+vim.keymap.set('n', '<leader>cf', ':e ', { desc = 'Create new file' })
+
+-- Delete current file
+vim.keymap.set('n', '<leader>df', function()
+  local file = vim.fn.expand('%')
+  if file ~= '' then
+    local confirm = vim.fn.confirm('Delete file "' .. file .. '"?', '&Yes\n&No', 2)
+    if confirm == 1 then
+      vim.fn.delete(file)
+      vim.cmd('bd!')
+      print('File deleted: ' .. file)
+    end
+  else
+    print('No file to delete')
+  end
+end, { desc = 'Delete current file' })
+
+-- Interactive delete command
+vim.keymap.set('n', '<leader>Del', function()
+  local filename = vim.fn.input('Delete file: ', '', 'file')
+  if filename ~= '' then
+    local confirm = vim.fn.confirm('Delete "' .. filename .. '"?', '&Yes\n&No', 2)
+    if confirm == 1 then
+      vim.fn.delete(filename)
+      print('Deleted: ' .. filename)
+    end
+  end
+end, { desc = 'Delete file interactively' })
+
+-- Renaming any file interactively
+vim.keymap.set('n', '<leader>rf', function()
+  local old_name = vim.fn.input('Rename file: ', '', 'file')
+  if old_name ~= '' then
+    local new_name = vim.fn.input('Rename to: ', old_name)
+    if new_name ~= '' and new_name ~= old_name then
+      vim.fn.rename(old_name, new_name)
+      print('Renamed: ' .. old_name .. ' -> ' .. new_name)
+    end
+  end
+end, { desc = 'Rename file interactively' })
+
 -- TELESCOPE CONFIGS
 -- Find files using Telescope command-line sugar.
 local builtin = require('telescope.builtin')
