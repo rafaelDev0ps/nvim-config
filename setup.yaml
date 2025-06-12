@@ -1,0 +1,233 @@
+---
+- name: Setup environment environment on macOS
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  become: no
+
+  vars:
+    neovim_config_dir: "{{ ansible_env.HOME }}/.config/nvim"
+    node_version: "18"
+    nvm_version: "v0.39.0"
+
+  tasks:
+    - name: Install Homebrew packages
+      homebrew:
+        name:
+          - neovim
+          - tmux
+          - python3
+          - go
+          - terraform
+          - bash-language-server
+          - ansible-language-server
+          - ripgrep  # Required for Telescope live_grep
+          - fd       # Better find for Telescope
+        state: present
+
+    - name: Install nvm
+      shell: |
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/{{ nvm_version }}/install.sh | bash
+      args:
+        creates: "{{ ansible_env.HOME }}/.nvm/nvm.sh"
+
+    - name: Source nvm and install Node.js
+      shell: |
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm install {{ node_version }}
+        nvm use {{ node_version }}
+        nvm alias default {{ node_version }}
+      args:
+        executable: /bin/bash
+        creates: "{{ ansible_env.HOME }}/.nvm/versions/node/v{{ node_version }}"
+
+    - name: Install Python packages for LSP support
+      pip:
+        name:
+          - pynvim
+          - python-lsp-server
+        executable: pip3
+        state: present
+
+    - name: Install Node.js packages for LSP support
+      shell: |
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm use {{ node_version }}
+        npm install -g {{ item }}
+      args:
+        executable: /bin/bash
+      loop:
+        - pyright
+        - yaml-language-server
+        - vscode-langservers-extracted
+        - "@ansible/ansible-language-server"
+      register: npm_install_result
+      changed_when: "'up to date' not in npm_install_result.stdout"
+
+    - name: Install Go language server
+      shell: go install golang.org/x/tools/gopls@latest
+      environment:
+        PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/go/bin"
+      args:
+        creates: "{{ ansible_env.HOME }}/go/bin/gopls"
+
+    - name: Install Terraform language server
+      shell: |
+        LATEST_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform-ls/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        curl -LO "https://releases.hashicorp.com/terraform-ls/${LATEST_VERSION:1}/terraform-ls_${LATEST_VERSION:1}_darwin_amd64.zip"
+        unzip terraform-ls_${LATEST_VERSION:1}_darwin_amd64.zip
+        mv terraform-ls /usr/local/bin/
+        rm terraform-ls_${LATEST_VERSION:1}_darwin_amd64.zip
+      args:
+        creates: /usr/local/bin/terraform-ls
+      become: yes
+
+    - name: Create Neovim config directory
+      file:
+        path: "{{ neovim_config_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copy init.lua configuration
+      copy:
+        src: init.lua
+        dest: "{{ neovim_config_dir }}/init.lua"
+        mode: '0644'
+        backup: yes
+
+    - name: Copy tmux configuration
+      copy:
+        src: .tmux.conf
+        dest: "{{ ansible_env.HOME }}/.tmux.conf"
+        mode: '0644'
+        backup: yes
+
+    - name: Install vim-plug for Neovim
+      get_url:
+        url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+        dest: "{{ ansible_env.HOME }}/.local/share/nvim/site/autoload/plug.vim"
+        mode: '0644'
+      register: vim_plug_install
+
+    - name: Create autoload directory if it doesn't exist
+      file:
+        path: "{{ ansible_env.HOME }}/.local/share/nvim/site/autoload"
+        state: directory
+        mode: '0755'
+      when: vim_plug_install.failed is defined and vim_plug_install.failed
+
+    - name: Install vim-plug (retry if directory creation was needed)
+      get_url:
+        url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+        dest: "{{ ansible_env.HOME }}/.local/share/nvim/site/autoload/plug.vim"
+        mode: '0644'
+      when: vim_plug_install.failed is defined and vim_plug_install.failed
+
+    - name: Install Neovim plugins
+      shell: nvim --headless +PlugInstall +qall
+      args:
+        creates: "{{ ansible_env.HOME }}/.local/share/nvim/plugged"
+      register: plugin_install
+      failed_when: plugin_install.rc != 0 and plugin_install.rc != 1
+
+    - name: Install CoC extensions
+      shell: |
+        export NVM_DIR="{{ ansible_env.HOME }}/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+        nvm use {{ node_version }}
+        nvim --headless +'CocInstall -sync coc-json coc-pyright coc-go coc-yaml coc-sh' +qall
+      args:
+        executable: /bin/bash
+      register: coc_install
+      failed_when: coc_install.rc != 0 and coc_install.rc != 1
+      ignore_errors: yes
+
+    - name: Create a fonts directory for dev icons
+      file:
+        path: "{{ ansible_env.HOME }}/Library/Fonts"
+        state: directory
+        mode: '0755'
+
+    - name: Download and install Nerd Font for dev icons
+      get_url:
+        url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.1/JetBrainsMono.zip"
+        dest: "/tmp/JetBrainsMono.zip"
+        mode: '0644'
+
+    - name: Extract Nerd Font
+      unarchive:
+        src: "/tmp/JetBrainsMono.zip"
+        dest: "{{ ansible_env.HOME }}/Library/Fonts"
+        remote_src: yes
+
+    - name: Clean up font download
+      file:
+        path: "/tmp/JetBrainsMono.zip"
+        state: absent
+
+    - name: Set up shell environment for LSP servers and nvm
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/.zshrc"
+        line: "{{ item }}"
+        create: yes
+        backup: yes
+      loop:
+        - 'export PATH="$PATH:{{ ansible_env.HOME }}/go/bin:/usr/local/bin"'
+        - 'export NVM_DIR="$HOME/.nvm"'
+        - '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"'
+        - '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"'
+      when: ansible_env.SHELL | regex_search('zsh')
+
+    - name: Set up shell environment for LSP servers and nvm (bash)
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/.bashrc"
+        line: "{{ item }}"
+        create: yes
+        backup: yes
+      loop:
+        - 'export PATH="$PATH:{{ ansible_env.HOME }}/go/bin:/usr/local/bin"'
+        - 'export NVM_DIR="$HOME/.nvm"'
+        - '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"'
+        - '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"'
+      when: ansible_env.SHELL | regex_search('bash')
+
+  handlers:
+    - name: Source shell configuration
+      shell: source {{ ansible_env.HOME }}/.zshrc
+      when: ansible_env.SHELL | regex_search('zsh')
+
+    - name: Source shell configuration (bash)
+      shell: source {{ ansible_env.HOME }}/.bashrc
+      when: ansible_env.SHELL | regex_search('bash')
+
+  post_tasks:
+    - name: Reload tmux configuration if tmux is running
+      shell: tmux source-file ~/.tmux.conf
+      ignore_errors: yes
+      register: tmux_reload
+
+    - name: Display setup completion message
+      debug:
+        msg: |
+          Neovim and tmux setup completed successfully!
+          
+          Next steps:
+          1. Restart your terminal or run: source ~/.zshrc (or ~/.bashrc) to load nvm
+          2. Verify nvm is working: nvm --version
+          3. Verify Node.js is installed: node --version
+          4. Open Neovim and run :checkhealth to verify everything is working
+          5. Start tmux with: tmux
+          6. The plugins should be automatically installed
+          7. Make sure to set your terminal font to a Nerd Font (JetBrains Mono Nerd Font was installed)
+          
+          Your development environment is now ready with:
+          - Neovim with LSP support for Go, Python, Terraform, Bash, Ansible, YAML, and JSON
+          - tmux with custom configuration (Ctrl+a prefix, custom splits, status bar)
+          - Node.js {{ node_version }} managed by nvm
+          - Telescope for fuzzy finding
+          - NERDTree for file browsing
+          - Dracula theme
+          - Dev icons support
+          - All your custom keymappings
