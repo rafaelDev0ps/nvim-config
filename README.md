@@ -2,6 +2,11 @@
 
 This repository contains my personal Neovim configuration, written in Lua and leveraging a modern plugin ecosystem for an efficient and enjoyable coding experience.
 
+## Install setup
+```shell
+$ ansible-playbook setup-neovim.yml
+```
+
 ## ✨ Features
 
 - **Plugin Management:** Uses vim-plug for easy plugin management.
