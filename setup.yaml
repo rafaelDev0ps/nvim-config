@@ -8,8 +8,8 @@
   vars:
     neovim_config_dir: "{{ ansible_env.HOME }}/.config/nvim"
     node_version: "18"
-    nvm_version: "v0.39.0"
-    neovim_version: "stable"  # Can be 'stable', 'nightly', or specific tag like 'v0.9.5'
+    nvm_version: "v0.40.3"
+    neovim_version: "stable" 
 
   tasks:
     - name: Install Homebrew packages (excluding neovim)
@@ -19,6 +19,7 @@
           - python3
           - go
           - terraform
+          - hashicorp/tap/terraform-ls
           - bash-language-server
           - ansible-language-server
           - ripgrep  # Required for Telescope live_grep
@@ -34,44 +35,12 @@
           - ipcalc
           - jq
           - awscli
-        state: present
-
-    - name: Install build dependencies for Neovim
-      homebrew:
-        name:
           - ninja
           - libtool
           - automake
           - pkg-config
+          - neovim
         state: present
-
-    - name: Check if Neovim is already installed
-      command: nvim --version
-      register: nvim_check
-      failed_when: false
-      changed_when: false
-
-    - name: Clone Neovim repository
-      git:
-        repo: https://github.com/neovim/neovim.git
-        dest: /tmp/neovim
-        version: "{{ neovim_version }}"
-        force: yes
-      when: nvim_check.rc != 0
-
-    - name: Build and install Neovim
-      shell: |
-        cd /tmp/neovim
-        make CMAKE_BUILD_TYPE=RelWithDebInfo
-        sudo make install
-      when: nvim_check.rc != 0
-      register: neovim_build
-
-    - name: Clean up Neovim build directory
-      file:
-        path: /tmp/neovim
-        state: absent
-      when: neovim_build is defined and neovim_build.changed
 
     - name: Verify Neovim installation
       command: nvim --version
@@ -136,17 +105,6 @@
       args:
         creates: "{{ ansible_env.HOME }}/go/bin/gopls"
 
-    - name: Install Terraform language server
-      shell: |
-        LATEST_VERSION=$(curl -s https://api.github.com/repos/hashicorp/terraform-ls/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-        curl -LO "https://releases.hashicorp.com/terraform-ls/${LATEST_VERSION:1}/terraform-ls_${LATEST_VERSION:1}_darwin_amd64.zip"
-        unzip terraform-ls_${LATEST_VERSION:1}_darwin_amd64.zip
-        mv terraform-ls /usr/local/bin/
-        rm terraform-ls_${LATEST_VERSION:1}_darwin_amd64.zip
-      args:
-        creates: /usr/local/bin/terraform-ls
-      become: yes
-
     - name: Create Neovim config directory
       file:
         path: "{{ neovim_config_dir }}"
@@ -164,6 +122,13 @@
       copy:
         src: .tmux.conf
         dest: "{{ ansible_env.HOME }}/.tmux.conf"
+        mode: '0644'
+        backup: yes
+
+    - name: Copy zsh configuration
+      copy:
+        src: .zshrc
+        dest: "{{ ansible_env.HOME }}/.zshrc"
         mode: '0644'
         backup: yes
 
@@ -274,7 +239,7 @@
     - name: Display setup completion message
       debug:
         msg: |
-          Neovim and tmux setup completed successfully!
+          Environment setup completed successfully!
           
           Installed versions:
           - Neovim: {{ nvim_verify.stdout.split('\n')[0] }}
@@ -299,6 +264,7 @@
           - Node.js {{ node_version }} managed by nvm
           - kubectl for Kubernetes cluster management
           - Helm for Kubernetes package management
+          - Terraform and Ansible
           - Telescope for fuzzy finding
           - NERDTree for file browsing
           - Dracula theme
