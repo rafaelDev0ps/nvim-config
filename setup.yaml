@@ -29,6 +29,11 @@
           - git
           - kubectl  # Kubernetes command-line tool
           - helm     # Kubernetes package manager
+          - telnet 
+          - wget
+          - ipcalc
+          - jq
+          - awscli
         state: present
 
     - name: Install build dependencies for Neovim
