@@ -1,11 +1,25 @@
-# 🛠️ Neovim Configuration
+# 🛠️ Environment Configuration
 
-This repository contains my personal Neovim configuration, written in Lua and leveraging a modern plugin ecosystem for an efficient and enjoyable coding experience.
+This repository contains my personal environment configuration, written in Lua and leveraging a modern plugin ecosystem for an efficient and enjoyable coding experience.
 
-## Install setup
-```shell
-$ ansible-playbook setup-neovim.yml
-```
+## 🚀 Getting Started
+
+1. **Install Homebrew**
+   ```sh
+    $ curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh
+   ```
+2. **Clone this repository:**
+   ```sh
+   git clone https://github.com/rafaelDev0ps/nvim-config ~/.config/nvim
+   ```
+4. **Install python/pip and ansible**
+   ```sh
+    $ brew install python3 && pipx install --include-deps ansible
+   ```
+5. **Run the Ansible setup script**
+   ```sh
+    $ ansible-playbook setup-neovim.yml
+   ```
 
 ## ✨ Features
 
@@ -78,16 +92,3 @@ $ ansible-playbook setup-neovim.yml
 - Ansible (ansiblels)
 - YAML (yamlls)
 - JSON (jsonls)
-
-## 🚀 Getting Started
-
-1. **Install [Neovim](https://neovim.io/) (v0.5+)**
-2. **Clone this repository:**
-   ```sh
-   git clone https://github.com/rafaelDev0ps/nvim-config ~/.config/nvim
-   ```
-3. **Install [vim-plug](https://github.com/junegunn/vim-plug) for Neovim**
-4. **Open Neovim and run:**
-   ```
-   :PlugInstall
-   ```
