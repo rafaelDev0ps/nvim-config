@@ -10,6 +10,7 @@ vim.cmd [[
   Plug 'scrooloose/nerdtree'
   Plug 'preservim/nerdcommenter'
   Plug 'neoclide/coc.nvim', {'branch': 'release'}
+  PLug 'tpope/vim-fugitive'
   call plug#end()
 ]]
 
