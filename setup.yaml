@@ -1,5 +1,5 @@
 ---
-- name: Setup environment environment on macOS
+- name: Setup development environment on macOS
   hosts: localhost
   connection: local
   gather_facts: yes
@@ -9,12 +9,12 @@
     neovim_config_dir: "{{ ansible_env.HOME }}/.config/nvim"
     node_version: "18"
     nvm_version: "v0.39.0"
+    neovim_version: "stable"  # Can be 'stable', 'nightly', or specific tag like 'v0.9.5'
 
   tasks:
-    - name: Install Homebrew packages
+    - name: Install Homebrew packages (excluding neovim)
       homebrew:
         name:
-          - neovim
           - tmux
           - python3
           - go
@@ -23,7 +23,65 @@
           - ansible-language-server
           - ripgrep  # Required for Telescope live_grep
           - fd       # Better find for Telescope
+          - cmake    # Required for building Neovim
+          - gettext  # Required for building Neovim
+          - curl
+          - git
+          - kubectl  # Kubernetes command-line tool
+          - helm     # Kubernetes package manager
         state: present
+
+    - name: Install build dependencies for Neovim
+      homebrew:
+        name:
+          - ninja
+          - libtool
+          - automake
+          - pkg-config
+        state: present
+
+    - name: Check if Neovim is already installed
+      command: nvim --version
+      register: nvim_check
+      failed_when: false
+      changed_when: false
+
+    - name: Clone Neovim repository
+      git:
+        repo: https://github.com/neovim/neovim.git
+        dest: /tmp/neovim
+        version: "{{ neovim_version }}"
+        force: yes
+      when: nvim_check.rc != 0
+
+    - name: Build and install Neovim
+      shell: |
+        cd /tmp/neovim
+        make CMAKE_BUILD_TYPE=RelWithDebInfo
+        sudo make install
+      when: nvim_check.rc != 0
+      register: neovim_build
+
+    - name: Clean up Neovim build directory
+      file:
+        path: /tmp/neovim
+        state: absent
+      when: neovim_build is defined and neovim_build.changed
+
+    - name: Verify Neovim installation
+      command: nvim --version
+      register: nvim_verify
+      changed_when: false
+
+    - name: Verify kubectl installation
+      command: kubectl version --client
+      register: kubectl_verify
+      changed_when: false
+
+    - name: Verify helm installation
+      command: helm version
+      register: helm_verify
+      changed_when: false
 
     - name: Install nvm
       shell: |
@@ -213,19 +271,29 @@
         msg: |
           Neovim and tmux setup completed successfully!
           
+          Installed versions:
+          - Neovim: {{ nvim_verify.stdout.split('\n')[0] }}
+          - Node.js: {{ node_version }} (via nvm)
+          - kubectl: {{ kubectl_verify.stdout.split('\n')[0] }}
+          - Helm: {{ helm_verify.stdout }}
+          
           Next steps:
           1. Restart your terminal or run: source ~/.zshrc (or ~/.bashrc) to load nvm
           2. Verify nvm is working: nvm --version
-          3. Verify Node.js is installed: node --version
+          3. Verify Node.js is installed: node --version  
           4. Open Neovim and run :checkhealth to verify everything is working
           5. Start tmux with: tmux
-          6. The plugins should be automatically installed
-          7. Make sure to set your terminal font to a Nerd Font (JetBrains Mono Nerd Font was installed)
+          6. Configure kubectl with your cluster: kubectl config set-context
+          7. Add Helm repositories: helm repo add <name> <url>
+          8. The plugins should be automatically installed
+          9. Make sure to set your terminal font to a Nerd Font (JetBrains Mono Nerd Font was installed)
           
           Your development environment is now ready with:
-          - Neovim with LSP support for Go, Python, Terraform, Bash, Ansible, YAML, and JSON
+          - Neovim {{ neovim_version }} built from source with LSP support
           - tmux with custom configuration (Ctrl+a prefix, custom splits, status bar)
           - Node.js {{ node_version }} managed by nvm
+          - kubectl for Kubernetes cluster management
+          - Helm for Kubernetes package management
           - Telescope for fuzzy finding
           - NERDTree for file browsing
           - Dracula theme
