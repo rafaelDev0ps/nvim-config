@@ -10,15 +10,16 @@ This repository contains my personal environment configuration, written in Lua a
    ```
 2. **Clone this repository:**
    ```sh
-   git clone https://github.com/rafaelDev0ps/nvim-config ~/.config/nvim
+   git clone https://github.com/rafaelDev0ps/nvim-config
    ```
 4. **Install python/pip and ansible**
    ```sh
+    $ brew install pipx && pipx ensurepath
     $ brew install python3 && pipx install --include-deps ansible
    ```
 5. **Run the Ansible setup script**
    ```sh
-    $ ansible-playbook setup-neovim.yml
+    $ ansible-playbook setup.yml
    ```
 
 ## ✨ Features
