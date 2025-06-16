@@ -12,7 +12,7 @@
     neovim_version: "stable" 
 
   tasks:
-    - name: Install Homebrew packages (excluding neovim)
+    - name: Install Homebrew packages
       homebrew:
         name:
           - tmux
@@ -100,10 +100,6 @@
 
     - name: Install Go language server
       shell: go install golang.org/x/tools/gopls@latest
-      environment:
-        PATH: "{{ ansible_env.PATH }}:{{ ansible_env.HOME }}/go/bin"
-      args:
-        creates: "{{ ansible_env.HOME }}/go/bin/gopls"
 
     - name: Create Neovim config directory
       file:
