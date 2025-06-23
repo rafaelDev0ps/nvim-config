@@ -143,10 +143,7 @@
       when: vim_plug_install.failed is defined and vim_plug_install.failed
 
     - name: Install vim-plug (retry if directory creation was needed)
-      get_url:
-        url: https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-        dest: "{{ ansible_env.HOME }}/.local/share/nvim/site/autoload/plug.vim"
-        mode: '0644'
+      shell: sh -c 'curl -fLo "${XDG_DATA_HOME:-$HOME/.local/share}"/nvim/site/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim'
       when: vim_plug_install.failed is defined and vim_plug_install.failed
 
     - name: Install Neovim plugins
