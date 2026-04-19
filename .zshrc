@@ -2,7 +2,7 @@
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-export ZSH="/Users/rafaeldemattos/.oh-my-zsh"
+export ZSH="$HOME/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -118,8 +118,8 @@ alias python=python3
 alias pip=pip3
 
 # GitHub SSH keys
-# eval "$(ssh-agent -s)"
-# ssh-add --apple-use-keychain path/to/keys
+eval "$(ssh-agent -s)"
+ssh-add --apple-use-keychain ~/.ssh/new_github
 
 # Minikube kubectl config
 #alias kubectl="minikube kubectl --"
@@ -127,10 +127,18 @@ alias pip=pip3
 # Update your PATH so that the protoc compiler can find the plugins
 export PATH="$PATH:$(go env GOPATH)/bin"
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
-fpath=(/Users/rafaeldemattos/.docker/completions $fpath)
+fpath=($HOME/.docker/completions $fpath)
 autoload -Uz compinit
 compinit
 # End of Docker CLI completions
 
-# Init tmux session 
+# Add krew to PATH
+export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+
+# Load nvm from the local checkout in ~/.nvm
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# Init tmux session
 tmux
