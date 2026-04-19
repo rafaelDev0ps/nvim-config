@@ -7,7 +7,7 @@
 
   vars:
     neovim_config_dir: "{{ ansible_env.HOME }}/.config/nvim"
-    node_version: "18"
+    node_version: "24.15.0"
     nvm_version: "v0.40.3"
     neovim_version: "stable" 
 
